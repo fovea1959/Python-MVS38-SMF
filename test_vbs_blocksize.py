@@ -1,10 +1,12 @@
+import json
 import logging
 import struct
 
+import utils
 from sl_tape import *
 
 def main():
-    sl_tape = SLTape("20260905-1722.aws")
+    sl_tape = SLTape("20260905-2158.aws")
     print(sl_tape.datasets_by_name)
 
 
@@ -21,12 +23,19 @@ def main():
             print(sum_bdw)
 
         if True:
+            records = []
             for i, record in enumerate(dataset.records()):
                 print('VBS record', i, len(record))
+                records.append(record)
+            utils.write_list_of_bytes("vbs.json", records)
 
     dataset : Dataset = sl_tape.datasets_by_name.get('ALL.SMFDATA.VB')
+    records = []
     for i, record in enumerate(dataset.records()):
         print('VB  record', i, len(record))
+        records.append(record)
+
+    utils.write_list_of_bytes("vb.json", records)
 
 
 if __name__ == "__main__":
