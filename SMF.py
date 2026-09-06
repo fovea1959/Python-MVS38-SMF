@@ -12,6 +12,7 @@ import utils
 
 
 class SMF:
+    description = None
     def __init__(self):
         # the SMF documents describe these, but they are actually the RDW
         # self.smf_len: int | None = None
@@ -20,7 +21,7 @@ class SMF:
         self.smf_type: int | None = None
         self.smf_datetime: datetime.datetime | None = None
         self.smf_sid: str | None = None
-        self.description: str | None = None
+        # self.description: str | None = None
 
     def fill(self, smf_parser: SMFParser):
         pass
@@ -54,23 +55,62 @@ class SMF:
     def __repr__(self) -> str:
         return self._repr()
 
+
+class SMF2(SMF):
+    description = "Dump header"
+
+
 class SMF3(SMF):
-    def __init__(self):
-        super().__init__()
-        self.description = "Dump trailer"
+    description = "Dump trailer"
 
 
 class SMF6(SMF):
+    description = "JES Output Writer"
+
     def __init__(self):
         super().__init__()
-        self.description = "JES Output Writer"
         self.smf6jbn = None
+        self.smf6rs_datetime = None
+        self.smf6owc = None
+        self.smf6ws_datetime = None
+        self.smf6nlr = None
+        self.smf6nds = None
+        self.smf6fmn = None
+        self.smf6out = None
+        self.smf6jnm = None
+        self.smf6pge = None
 
     def fill(self, smf_parser: SMFParser):
+        logging.info("bytes left: %d", smf_parser.bytes_remaining())
         self.smf6jbn = smf_parser.get_string(8).rstrip()
+        self.smf6rs_datetime = smf_parser.get_tme_dte()
+        smf_parser.get_string(8)    # smf6uif
+        self.smf6owc = smf_parser.get_string(1)
+        self.smf6ws_datetime = smf_parser.get_tme_dte()
+        self.smf6nlr = smf_parser.get_fullword()
+        smf_parser.get_byte()       # smf6ioe
+        self.smf6nds = smf_parser.get_byte()
+        self.smf6fmn = smf_parser.get_string(4)
+        smf_parser.get_byte()       # smf6pad1
+        smf_parser.get_halfword()   # smf6sbs
+
+        smf6ln1 = smf_parser.get_halfword()
+        smf_parser.read(1)  # smf6dci
+        smf6indc = smf_parser.get_byte()
+        if smf6indc == 0:
+            self.smf6jnm = smf_parser.get_string(4)
+        else:
+            smf_parser.read(4)
+        self.smf6out = smf_parser.get_string(8).rstrip()
+        smf_parser.get_string(4)    # smf6fcb
+        smf_parser.get_string(4)    # smf6ucs
+        self.smf6pge = smf_parser.get_fullword()
+        smf_parser.get_halfword()   # smf6rte
+
+        logging.info("bytes left: %d", smf_parser.bytes_remaining())
 
     def __repr__(self) -> str:
-        return self._repr(job=self.smf6jbn)
+        return self._repr(job=self.smf6jbn, reader=str(self.smf6rs_datetime)[:-4])
 
 class SMF70(SMF):
     def __init__(self):
@@ -140,8 +180,7 @@ class SMFParser:
         rv.smf_type = smf_type
         rv.smf_sid = smf_sid
 
-        midnight = datetime.datetime.combine(smf_dte, datetime.time.min)
-        rv.smf_datetime = midnight + smf_tme
+        rv.smf_datetime = self.make_datetime(smf_dte, smf_tme)
 
         rv.fill(self)
 
@@ -152,24 +191,45 @@ class SMFParser:
         self.reader = None
         return rv
 
+    def read(self, l):
+        assert self.bytes_remaining() >= l
+        return self.reader.read(l)
+
+    def bytes_remaining(self):
+        # Calculate remaining bytes
+        total_size = self.reader.getbuffer().nbytes
+        current_pos = self.reader.tell()
+        return total_size - current_pos
+
+    @staticmethod
+    def make_datetime(dte: datetime.date, tme: datetime.timedelta):
+        midnight = datetime.datetime.combine(dte, datetime.time.min)
+        rv = midnight + tme
+        return rv
+
     def get_string(self, l):
-        b = self.reader.read(l)
+        b = self.read(l)
         rv = b.decode('cp500')
         return rv
 
     def get_fullword(self):
-        b = self.reader.read(4)
+        b = self.read(4)
         rv, = struct.unpack(">I", b)
         return rv
 
     def get_halfword(self):
-        b = self.reader.read(2)
+        b = self.read(2)
         rv, = struct.unpack(">H", b)
         return rv
 
     def get_byte(self):
-        b = self.reader.read(1)
+        b = self.read(1)
         return int.from_bytes(b, signed=False)
+
+    def get_tme_dte(self) -> datetime.datetime:
+        tme = self.get_tod()
+        dte = self.get_yydddf()
+        return self.make_datetime(dte, tme)
 
     def get_tod(self) -> datetime.timedelta:
         time_in_hundredths = self.get_fullword()
@@ -186,7 +246,7 @@ class SMFParser:
         return rv
 
     def get_packed_decimal(self, l: int) -> int:    # original had decimals: int = 0 argument
-        packed_bytes = self.reader.read(l)
+        packed_bytes = self.read(l)
         digits = []
 
         # Iterate through all bytes except the last one
@@ -215,12 +275,14 @@ class SMFParser:
 
 
 def main(argv):
+    import json
     records = utils.read_list_of_bytes("vb.json")
     smf_parser = SMFParser()
     for record in records:
         smf_record = smf_parser.make_smf_from_bytes(record, filter=(6,))
         if smf_record is not None:
             logging.info("Got %s", smf_record)
+            logging.debug(" %s", json.dumps((smf_record.__class__.__name__, smf_record.__dict__), indent=1,default=str))
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
