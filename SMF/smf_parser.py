@@ -10,6 +10,7 @@ from collections.abc import Collection
 from typing import TYPE_CHECKING
 
 from .smf0x import *
+from .smf2x import *
 from .smf7x import *
 
 if TYPE_CHECKING:

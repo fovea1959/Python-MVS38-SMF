@@ -5,6 +5,39 @@ if TYPE_CHECKING:
 
 from .smf import SMF
 
+class SMF0(SMF):
+    smf_description = "IPL Header"
+
+    def __init__(self):
+        super().__init__()
+        self.smf0vst = None
+        self.smf0rst = None
+        self.smf0osl = None
+        self.smf0syn = None
+
+    def fill(self, smf_parser: SMFParser):
+        self.logger.info("getting ready to fill: have %d bytes", smf_parser.bytes_remaining())
+        smf_parser.get_fullword()  # smf0jwt
+        smf_parser.get_fullword()  # smf0buf
+        self.smf0vst = smf_parser.get_fullword()
+        smf_parser.get_byte()      # smf0opt
+        self.smf0rst = smf_parser.get_fullword()
+        if smf_parser.bytes_remaining() > 0:
+            smf_parser.get_byte()      # smf0rsv
+        if smf_parser.bytes_remaining() > 0:
+            self.smf0osl = smf_parser.get_string(8)
+        if smf_parser.bytes_remaining() > 0:
+            self.smf0syn = smf_parser.get_string(8)
+
+    def __repr__(self) -> str:
+        return self._repr(
+            virtual=self.smf0vst,
+            real=self.smf0rst,
+            product=self.smf0osl,
+            sysname=self.smf0syn,
+        )
+
+
 class SMF2(SMF):
     smf_description = "Dump header"
 
