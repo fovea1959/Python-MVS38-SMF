@@ -30,7 +30,6 @@ class SMF6(SMF):
         self.smf6pge = None
 
     def fill(self, smf_parser: SMFParser):
-        self.logger.info("bytes left: %d", smf_parser.bytes_remaining())
         self.smf6jbn = smf_parser.get_string(8).rstrip()
         self.smf6rs_datetime = smf_parser.get_tme_dte()
         smf_parser.get_string(8)    # smf6uif
@@ -43,7 +42,7 @@ class SMF6(SMF):
         smf_parser.get_byte()       # smf6pad1
         smf_parser.get_halfword()   # smf6sbs
 
-        smf6ln1 = smf_parser.get_halfword()
+        smf_parser.get_halfword()  # smf6ln1
         smf_parser.read(1)  # smf6dci
         smf6indc = smf_parser.get_byte()
         if smf6indc == 0:
@@ -55,8 +54,6 @@ class SMF6(SMF):
         smf_parser.get_string(4)    # smf6ucs
         self.smf6pge = smf_parser.get_fullword()
         smf_parser.get_halfword()   # smf6rte
-
-        self.logger.info("bytes left: %d", smf_parser.bytes_remaining())
 
     def __repr__(self) -> str:
         return self._repr(job=self.smf6jbn, reader=str(self.smf6rs_datetime)[:-4])

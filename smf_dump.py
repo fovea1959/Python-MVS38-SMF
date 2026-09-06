@@ -9,11 +9,11 @@ def main(argv):
     records = utils.read_list_of_bytes("vb.json")
     smf_parser = SMF.SMFParser()
     for record in records:
-        smf_record = smf_parser.make_smf_from_bytes(record, type_filter=None)  # (6,))
+        smf_record = smf_parser.make_smf_from_bytes(record, type_filter=(6,26))
         if smf_record is not None:
             logging.info("Got %s", smf_record)
             logging.debug(" %s", json.dumps((smf_record.__class__.__name__, smf_record.__dict__), indent=1,default=str))
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     main(sys.argv[1:])

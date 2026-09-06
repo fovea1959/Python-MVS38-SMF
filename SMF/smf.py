@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .smf_parser import SMFParser
 
-
 class SMF:
     smf_description = None
     def __init__(self):
-        self.logger = logging.getLogger(__class__.__name__)
+        self.logger = logging.getLogger(f"SMF.{self.__class__.__name__}")
+        self.smf_datetime = None
+        self.smf_type = None
         # the SMF documents describe these, but they are actually the RDW
         # self.smf_len: int | None = None
         # self.smf_seg: int | None = None
@@ -21,7 +22,8 @@ class SMF:
         # self.smf_description: str | None = None
 
     def fill(self, smf_parser: SMFParser):
-        pass
+        gobble = smf_parser.reader.read()
+        self.logger.debug("ate %d bytes at end of type %d record", self.smf_type, len(gobble))
 
     def _repr(self, **fields: typing.Dict[str, typing.Any]) -> str:
         my_fields: typing.Dict[str, typing.Any] = {

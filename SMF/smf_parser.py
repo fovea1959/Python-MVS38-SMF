@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from .smf import SMF
 
 
+logger = logging.getLogger(__name__)
+
+
 class SMFParseError(Exception):
     pass
 
@@ -34,10 +37,7 @@ def has_class_in_smfnx_module(class_name: str) -> bool:
 
 class SMFParser:
     def __init__(self):
-        self.logger = logging.getLogger(__class__.__name__)
-        self.logger.setLevel(logging.DEBUG)
         self.reader = None
-        pass
 
     def make_smf_from_bytes(self, b: bytes | bytearray, type_filter: Collection[int] | None = None) -> SMF | None:
         self.reader = io.BytesIO(b)
@@ -58,11 +58,11 @@ class SMFParser:
         class_name = f'SMF{smf_type}'
 
         if has_class_in_smfnx_module(class_name):
-            logging.debug(f"Found {class_name}")
+            logger.debug(f"Found {class_name}")
             class_object = globals()[class_name]
             rv = class_object()
         else:
-            logging.debug(f"No {class_name}")
+            logger.debug(f"No {class_name}")
             from .smf import SMF
             rv = SMF()
 
@@ -74,9 +74,9 @@ class SMFParser:
 
         rv.fill(self)
 
-        b = self.reader.read()
-        if len(b) != 0:
-            logging.info("Had %d unprocessed bytes at end of SMF %d record", len(b), rv.smf_type)
+        bc = self.bytes_remaining()
+        if bc != 0:
+            logger.info("Had %d unprocessed bytes at end of SMF %d record", bc, rv.smf_type)
 
         self.reader = None
         return rv
