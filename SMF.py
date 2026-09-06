@@ -7,7 +7,6 @@ import sys
 import typing
 
 from collections.abc import Collection
-from decimal import Decimal
 
 import utils
 
@@ -21,28 +20,57 @@ class SMF:
         self.smf_type: int | None = None
         self.smf_datetime: datetime.datetime | None = None
         self.smf_sid: str | None = None
+        self.description: str | None = None
 
     def fill(self, smf_parser: SMFParser):
         pass
 
     def _repr(self, **fields: typing.Dict[str, typing.Any]) -> str:
-        my_fields: typing.Dict[str, typing.Any] = { 'timestamp': f'{self.smf_datetime.isoformat()} {self.smf_datetime}' }
+        my_fields: typing.Dict[str, typing.Any] = {
+            '-timestamp': str(self.smf_datetime)[:-4],      # remove extra decimal places
+        }
         my_fields.update(fields)
         return self._repr_no_common(**my_fields)
 
     def _repr_no_common(self, **fields: typing.Dict[str, typing.Any]) -> str:
         # Helper for __repr__
-        field_strings = []
         cn = self.__class__.__name__
-        if cn == "SMF":
-            field_strings.append(f'type={self.smf_type}')
+
+        dd = ''
+        if self.description is not None:
+            dd = f'[{self.description}]'
+        elif cn == "SMF":
+            dd = f'[{self.smf_type}]'
+
+        field_strings = []
         for key, field in fields.items():
-            field_strings.append(f'{key}={field!r}')
-        return f"<{cn}({','.join(field_strings)})>"
+            if key.startswith('-'):
+                field_strings.append(f'{field}')
+            else:
+                field_strings.append(f'{key}={field!r}')
+
+        return f"<{cn}{dd}({','.join(field_strings)})>"
 
     def __repr__(self) -> str:
         return self._repr()
 
+class SMF3(SMF):
+    def __init__(self):
+        super().__init__()
+        self.description = "Dump trailer"
+
+
+class SMF6(SMF):
+    def __init__(self):
+        super().__init__()
+        self.description = "JES Output Writer"
+        self.smf6jbn = None
+
+    def fill(self, smf_parser: SMFParser):
+        self.smf6jbn = smf_parser.get_string(8).rstrip()
+
+    def __repr__(self) -> str:
+        return self._repr(job=self.smf6jbn)
 
 class SMF70(SMF):
     def __init__(self):
@@ -94,6 +122,10 @@ class SMFParser:
         smf_dte = self.get_yydddf()
         smf_sid = self.get_string(4).rstrip()
 
+        if filter is not None:
+            if smf_type not in filter:
+                return None
+
         class_name = f'SMF{smf_type}'
 
         if has_class_in_current_module(class_name):
@@ -110,6 +142,12 @@ class SMFParser:
 
         midnight = datetime.datetime.combine(smf_dte, datetime.time.min)
         rv.smf_datetime = midnight + smf_tme
+
+        rv.fill(self)
+
+        b = self.reader.read()
+        if len(b) != 0:
+            logging.info("Had %d unprocessed bytes at end of SMF %d record", len(b), rv.smf_type)
 
         self.reader = None
         return rv
@@ -180,8 +218,9 @@ def main(argv):
     records = utils.read_list_of_bytes("vb.json")
     smf_parser = SMFParser()
     for record in records:
-        smf_record = smf_parser.make_smf_from_bytes(record)
-        logging.info("Got %s", smf_record)
+        smf_record = smf_parser.make_smf_from_bytes(record, filter=(6,))
+        if smf_record is not None:
+            logging.info("Got %s", smf_record)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
