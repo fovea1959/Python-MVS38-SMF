@@ -28,6 +28,10 @@ class SMF:
         gobble = reader.read()
         self.logger.debug("ate %d bytes at end of type %d record", self.smf_type, len(gobble))
 
+    def clean_dict(self, keep_nones: bool = False):
+        filtered_dict = {k: v for k, v in self.__dict__.items() if k.startswith('smf') and (keep_nones or v is not None)}
+        return filtered_dict
+
     def _repr(self, **fields: typing.Dict[str, typing.Any]) -> str:
         my_fields: typing.Dict[str, typing.Any] = {
             '-timestamp': str(self.smf_datetime)[:-4],      # remove extra decimal places

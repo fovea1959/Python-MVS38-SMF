@@ -1,9 +1,10 @@
-import datetime
+import collections
+#import datetime
 import inspect
-import io
-import json
+#import io
+#import json
 import logging
-import struct
+#import struct
 import re
 
 from collections.abc import Collection
@@ -11,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from .smf0x import *
 from .smf2x import *
+from .smf4x import *
 from .smf7x import *
 
 if TYPE_CHECKING:
@@ -35,6 +37,8 @@ def has_class_in_smfnx_module(class_name: str) -> bool:
 class SMFParser:
     def __init__(self):
         self.reader = None
+        self.all_counter = collections.Counter()
+        self.filtered_counter = collections.Counter()
 
     def make_smf_from_bytes(self, b: bytes | bytearray, type_filter: Collection[int] | None = None) -> SMF | None:
         self.reader = BAReader(b)
@@ -47,9 +51,13 @@ class SMFParser:
         smf_tme_dte = self.reader.get_tme_dte()
         smf_sid = self.reader.get_string(4).rstrip()
 
+        self.all_counter[smf_type] += 1
+
         if type_filter is not None:
             if smf_type not in type_filter:
                 return None
+
+        self.filtered_counter[smf_type] += 1
 
         class_name = f'SMF{smf_type}'
 
@@ -76,4 +84,3 @@ class SMFParser:
 
         self.reader = None
         return rv
-

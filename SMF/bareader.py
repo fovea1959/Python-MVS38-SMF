@@ -3,11 +3,21 @@ import io
 import struct
 
 class BAReader:
-    def __init__(self, initial_bytes: bytes):
+    def __init__(self, initial_bytes: bytes, offset = 0):
         self.r = io.BytesIO(initial_bytes)
+        self.offset = offset
 
     def tell(self) -> int:
-        return self.r.tell()
+        return self.r.tell() + self.offset
+
+    def get_buffer(self) -> bytes:
+        return self.r.getbuffer()
+
+    def subreader(self, l: int) -> BAReader:
+        offset = self.tell()
+        b = self.read(l)
+        rv = BAReader(b, offset)
+        return rv
 
     def bytes_remaining(self) -> int:
         # Calculate remaining bytes
@@ -29,6 +39,11 @@ class BAReader:
     def get_string(self, l):
         b = self.read(l)
         rv = b.decode('cp500')
+        return rv
+
+    def get_doubleword(self):
+        b = self.read(8)
+        rv, = struct.unpack_from(">q", b)
         return rv
 
     def get_fullword(self):

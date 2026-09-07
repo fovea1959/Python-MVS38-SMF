@@ -1,8 +1,36 @@
 from .bareader import BAReader
-
 from .smf import SMF
 from .smf_errors import SMFParseError
 
+class SMF20(SMF):
+    smf_description = "Job initiation"
+
+    def __init__(self):
+        super().__init__()
+        self.smf20jbn = None
+        self.smf20rs_datetime = None
+        self.smf20uid = None
+        self.smf20pgm = None
+        self.smf20act = None
+
+    def fill(self, reader: BAReader):
+        self.smf20jbn = reader.get_string(8).rstrip()
+        self.smf20rs_datetime = reader.get_tme_dte()
+        self.smf20uid = reader.get_string(8).rstrip()
+        reader.read(2)      # smf20rin
+        self.smf20pgm = reader.get_string(20)
+        smf20naf = reader.get_byte()
+        self.smf20act = []
+        for _ in range(smf20naf):
+            l = reader.get_byte()
+            af = reader.get_string(l)
+            self.smf20act.append(af)
+
+    def __repr__(self) -> str:
+        return self._repr(
+            job=self.smf20jbn,
+            reader=str(self.smf20rs_datetime)[:-4],
+        )
 
 class SMF26(SMF):
     smf_description = "JES Job Purge"
@@ -32,32 +60,27 @@ class SMF26(SMF):
             raise SMFParseError("Got a Type 26 record from other than JES2")
         reader.read(2)    # smf26ind
 
-        smf26ln1_start = reader.tell() + 2      # 2 = length of smfln1
         smf26ln1 = reader.get_halfword()   # smf26ln1
+        s_reader = reader.subreader(smf26ln1 - 2)
 
-        smf26ln1_buffer = reader.read(smf26ln1 - 2)
-
-        if True:
-            s_reader = BAReader(smf26ln1_buffer)
-            # self.logger.info("reading smf26rv1 @ %d bytes", smf26ln1_start + s_reader.tell())
-            s_reader.read(2 + 1 + 1)     # smf26rv1, smf26in2, smf26inf
-            self.smf26jnm = s_reader.get_string(4)
-            self.smf26jid = s_reader.get_string(8)
-            self.smf26nam = s_reader.get_string(20).rstrip()
-            self.smf26msg = s_reader.get_string(1)
-            # self.logger.info("reading smf26cls @ %d bytes", smf26ln1_start + s_reader.tell())
-            self.smf26cls = s_reader.get_string(1)
-            s_reader.read(1 + 1 + 1 + 1 + 2)        # xpi, xps, opi, ops, loc
-            self.smf26dev = s_reader.get_string(8).rstrip()
-            self.smf26act = s_reader.get_string(4).rstrip()
-            self.smf26rom = s_reader.get_string(4).rstrip()
-            # self.logger.info("reading smf26xtm @ %d bytes", smf26ln1_start + s_reader.tell())
-            s_reader.read(4 + 4 + 4 + 4 + 2 + 2 + 2 + 2) # xtm, eln, epu, frm, cyp, lin, prr, pur
-            # self.logger.info("reading smf26pdd @ %d bytes", smf26ln1_start + s_reader.tell())
-            s_reader.get_string(8).rstrip() # pdd
-            x = s_reader.bytes_remaining()
-            if x > 0:
-                self.logger.info("smf26ln1_buffer @ %d bytes, %d bytes left over", smf26ln1_start + s_reader.tell(), x)
+        self.logger.info("reading smf26rv1 @ %d bytes", s_reader.tell())
+        s_reader.read(2 + 1 + 1)     # smf26rv1, smf26in2, smf26inf
+        self.smf26jnm = s_reader.get_string(4)
+        self.smf26jid = s_reader.get_string(8)
+        self.smf26nam = s_reader.get_string(20).rstrip()
+        self.smf26msg = s_reader.get_string(1)
+        self.logger.info("reading smf26cls @ %d bytes", s_reader.tell())
+        self.smf26cls = s_reader.get_string(1)
+        s_reader.read(1 + 1 + 1 + 1 + 2)        # xpi, xps, opi, ops, loc
+        self.smf26dev = s_reader.get_string(8).rstrip()
+        self.smf26act = s_reader.get_string(4).rstrip()
+        self.smf26rom = s_reader.get_string(4).rstrip()
+        self.logger.info("reading smf26xtm @ %d bytes", s_reader.tell())
+        s_reader.read(4 + 4 + 4 + 4 + 2 + 2 + 2 + 2) # xtm, eln, epu, frm, cyp, lin, prr, pur
+        self.logger.info("reading smf26pdd @ %d bytes", s_reader.tell())
+        s_reader.get_string(8).rstrip() # pdd
+        if s_reader.bytes_remaining() > 0:
+            self.logger.info("descriptor section @ %d bytes, %d bytes left over", s_reader.tell(), s_reader.bytes_remaining())
 
         smf26ln2 = reader.get_halfword()
         reader.read(smf26ln2 - 2)
