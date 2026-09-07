@@ -62,7 +62,7 @@ class BAReader:
 
     def get_tme_dte(self) -> datetime.datetime:
         tme = self.get_tod()
-        dte = self.get_yydddf()
+        dte = self.get_0yyydddf()
         return self.make_datetime(dte, tme)
 
     def get_tod(self) -> datetime.timedelta:
@@ -71,12 +71,30 @@ class BAReader:
         rv = datetime.timedelta(seconds=seconds_since_midnight)
         return rv
 
-    def get_yydddf(self) -> datetime.date:
+    def get_0yyydddf(self) -> datetime.date:
         yyyddd = self.get_packed_decimal(4)
         julian_day = yyyddd % 1000
         year = 1900 + (yyyddd // 1000)
         s_yyyyddd = f'{year:04d}{julian_day:03d}'
         rv = datetime.date.strptime(s_yyyyddd, "%Y%j")
+        return rv
+
+    def get_0hhmmssf(self) -> datetime.timedelta:
+        hhmmss = self.get_packed_decimal(4)
+        ss = hhmmss % 100
+        hhmm = hhmmss // 100
+        mm = hhmm % 100
+        hh = hhmm // 100
+        rv = datetime.timedelta(hours=hh, minutes=mm, seconds=ss)
+        return rv
+
+    def get_mmsstttf(self) -> datetime.timedelta:
+        mmssttt = self.get_packed_decimal(4)
+        ttt = mmssttt % 1000
+        mmss = mmssttt // 1000
+        ss = mmss % 100
+        mm = mmss // 100
+        rv = datetime.timedelta(minutes=mm, seconds=ss, milliseconds=ttt)
         return rv
 
     def get_packed_decimal(self, l: int) -> int:    # original had decimals: int = 0 argument

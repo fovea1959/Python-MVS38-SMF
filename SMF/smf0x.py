@@ -1,4 +1,6 @@
+from .bareader import BAReader
 from .smf import SMF
+from .smf_errors import SMFParseError
 
 class SMF0(SMF):
     smf_description = "IPL Header"
