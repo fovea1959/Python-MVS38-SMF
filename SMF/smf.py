@@ -3,6 +3,9 @@ import logging
 import typing
 
 from typing import TYPE_CHECKING
+
+from .bareader import BAReader
+
 if TYPE_CHECKING:
     from .smf_parser import SMFParser
 
@@ -21,8 +24,8 @@ class SMF:
         self.smf_sid: str | None = None
         # self.smf_description: str | None = None
 
-    def fill(self, smf_parser: SMFParser):
-        gobble = smf_parser.reader.read()
+    def fill(self, reader: BAReader):
+        gobble = reader.read()
         self.logger.debug("ate %d bytes at end of type %d record", self.smf_type, len(gobble))
 
     def _repr(self, **fields: typing.Dict[str, typing.Any]) -> str:

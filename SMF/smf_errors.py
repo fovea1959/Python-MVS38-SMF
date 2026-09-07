@@ -1,0 +1,4 @@
+class SMFParseError(Exception):
+    pass
+
+

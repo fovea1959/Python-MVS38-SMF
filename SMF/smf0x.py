@@ -1,8 +1,3 @@
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .smf_parser import SMFParser
-
 from .smf import SMF
 
 class SMF0(SMF):
@@ -15,19 +10,18 @@ class SMF0(SMF):
         self.smf0osl = None
         self.smf0syn = None
 
-    def fill(self, smf_parser: SMFParser):
-        self.logger.info("getting ready to fill: have %d bytes", smf_parser.bytes_remaining())
-        smf_parser.get_fullword()  # smf0jwt
-        smf_parser.get_fullword()  # smf0buf
-        self.smf0vst = smf_parser.get_fullword()
-        smf_parser.get_byte()      # smf0opt
-        self.smf0rst = smf_parser.get_fullword()
-        if smf_parser.bytes_remaining() > 0:
-            smf_parser.get_byte()      # smf0rsv
-        if smf_parser.bytes_remaining() > 0:
-            self.smf0osl = smf_parser.get_string(8)
-        if smf_parser.bytes_remaining() > 0:
-            self.smf0syn = smf_parser.get_string(8)
+    def fill(self, reader: BAReader):
+        reader.get_fullword()  # smf0jwt
+        reader.get_fullword()  # smf0buf
+        self.smf0vst = reader.get_fullword()
+        reader.get_byte()      # smf0opt
+        self.smf0rst = reader.get_fullword()
+        if reader.bytes_remaining() > 0:
+            reader.get_byte()      # smf0rsv
+        if reader.bytes_remaining() > 0:
+            self.smf0osl = reader.get_string(8)
+        if reader.bytes_remaining() > 0:
+            self.smf0syn = reader.get_string(8)
 
     def __repr__(self) -> str:
         return self._repr(
@@ -62,31 +56,31 @@ class SMF6(SMF):
         self.smf6jnm = None
         self.smf6pge = None
 
-    def fill(self, smf_parser: SMFParser):
-        self.smf6jbn = smf_parser.get_string(8).rstrip()
-        self.smf6rs_datetime = smf_parser.get_tme_dte()
-        smf_parser.get_string(8)    # smf6uif
-        self.smf6owc = smf_parser.get_string(1)
-        self.smf6ws_datetime = smf_parser.get_tme_dte()
-        self.smf6nlr = smf_parser.get_fullword()
-        smf_parser.get_byte()       # smf6ioe
-        self.smf6nds = smf_parser.get_byte()
-        self.smf6fmn = smf_parser.get_string(4)
-        smf_parser.get_byte()       # smf6pad1
-        smf_parser.get_halfword()   # smf6sbs
+    def fill(self, reader: BAReader):
+        self.smf6jbn = reader.get_string(8).rstrip()
+        self.smf6rs_datetime = reader.get_tme_dte()
+        reader.get_string(8)    # smf6uif
+        self.smf6owc = reader.get_string(1)
+        self.smf6ws_datetime = reader.get_tme_dte()
+        self.smf6nlr = reader.get_fullword()
+        reader.get_byte()       # smf6ioe
+        self.smf6nds = reader.get_byte()
+        self.smf6fmn = reader.get_string(4)
+        reader.get_byte()       # smf6pad1
+        reader.get_halfword()   # smf6sbs
 
-        smf_parser.get_halfword()  # smf6ln1
-        smf_parser.read(1)  # smf6dci
-        smf6indc = smf_parser.get_byte()
+        reader.get_halfword()  # smf6ln1
+        reader.read(1)  # smf6dci
+        smf6indc = reader.get_byte()
         if smf6indc == 0:
-            self.smf6jnm = smf_parser.get_string(4)
+            self.smf6jnm = reader.get_string(4)
         else:
-            smf_parser.read(4)
-        self.smf6out = smf_parser.get_string(8).rstrip()
-        smf_parser.get_string(4)    # smf6fcb
-        smf_parser.get_string(4)    # smf6ucs
-        self.smf6pge = smf_parser.get_fullword()
-        smf_parser.get_halfword()   # smf6rte
+            reader.read(4)
+        self.smf6out = reader.get_string(8).rstrip()
+        reader.get_string(4)    # smf6fcb
+        reader.get_string(4)    # smf6ucs
+        self.smf6pge = reader.get_fullword()
+        reader.get_halfword()   # smf6rte
 
     def __repr__(self) -> str:
         return self._repr(job=self.smf6jbn, reader=str(self.smf6rs_datetime)[:-4])
