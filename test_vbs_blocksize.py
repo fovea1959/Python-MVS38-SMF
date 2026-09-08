@@ -6,7 +6,7 @@ import utils
 from sl_tape import *
 
 def main():
-    sl_tape = SLTape("20260905-2158.aws")
+    sl_tape = SLTape("20260907-2205.aws")
     print(sl_tape.datasets_by_name)
 
 

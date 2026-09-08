@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from .smf0x import *
 from .smf2x import *
+from .smf3x import *
 from .smf4x import *
 from .smf7x import *
 
@@ -38,7 +39,9 @@ class SMFParser:
     def __init__(self):
         self.reader = None
         self.all_counter = collections.Counter()
+        self.all_count = 0
         self.filtered_counter = collections.Counter()
+        self.filtered_count = 0
 
     def make_smf_from_bytes(self, b: bytes | bytearray, type_filter: Collection[int] | None = None) -> SMF | None:
         self.reader = BAReader(b)
@@ -52,12 +55,14 @@ class SMFParser:
         smf_sid = self.reader.get_string(4).rstrip()
 
         self.all_counter[smf_type] += 1
+        self.all_count += 1
 
         if type_filter is not None:
             if smf_type not in type_filter:
                 return None
 
         self.filtered_counter[smf_type] += 1
+        self.filtered_count += 1
 
         class_name = f'SMF{smf_type}'
 
