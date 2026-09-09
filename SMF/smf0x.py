@@ -1,6 +1,9 @@
+from typing import cast
+
 from .bareader import BAReader
 from .smf import SMF
 from .smf_errors import SMFParseError
+from .model_lookup import lookup_model_by_class_and_type
 
 class SMF0(SMF):
     smf_description = "IPL Header"
@@ -78,31 +81,50 @@ class SMF4(SMF):
         smf4rlct = reader.get_halfword()
         assert reader.tell() == 102, f"smf4llen in wrong place, @ {reader.tell()}"
         smf4llen = reader.get_halfword()
-        self.smf5jicl = reader.get_string(1)
 
-        '''
-        assert reader.tell() == 72, 
-        reader.get_byte()       # smf5spk
-        reader.read(3)          # smf5srbt  ########################### TODO ##############################
-        self.smf5tjs = reader.get_fullword()
-        self.smf5ttat = reader.get_fullword()
-        reader.get_fullword()   # smf5rv2
-        reader.read(2 + 2)      # smf5pgno, smf5rv3
-        # offset s/b 92
-        assert reader.tell() == 92, "smf5tlen in wrong place, @ {reader.tell()}"
-        smf5tlen = reader.get_byte()
+        s_reader = reader.subreader(smf4llen - 2)
+        device_entries = []
+        while s_reader.bytes_remaining() >= 8:
+            smf4devc = s_reader.get_byte()
+            smf4utyp = s_reader.get_byte()
+            if smf4devc == 0 and smf4utyp == 0:
+                continue
+            dt = lookup_model_by_class_and_type(smf4devc, smf4utyp)
+            smf4cuad = s_reader.get_halfword()
+            smf4excp = s_reader.get_fullword()
+            device_entries.append(f'{dt} @ {smf4cuad:03x} {smf4excp}')
+        self.smf4devices = device_entries
+        if s_reader.bytes_remaining() > 0:
+            self.logger.info(f"{s_reader.bytes_remaining()} extra bytes at end of device entries")
 
-        s_reader = reader.subreader(smf5tlen)
-        self.smf5prgn = s_reader.get_string(20).rstrip()
-        smf5jcpu = s_reader.read(3)             ################## TODO ##################
-        smf5actf = s_reader.get_byte()
-        self.smf5act = []
+        smf4lnth = reader.get_byte()
+        s_reader = reader.subreader(smf4lnth)
+        s_reader.read(3)              ############### TODO #################### smf5setm
+        smf4naf = s_reader.get_byte()
+        self.smf4act = []
 
-        for _ in range(smf5actf):
+        for _ in range(smf4naf):
             l = s_reader.get_byte()
             af = s_reader.get_string(l)
-            self.smf5act.append(af)
-        '''
+            self.smf4act.append(af)
+
+        reader.r.seek(smf4rlct)
+        s_reader = reader.subreader(70)
+        s_reader.offset = 0     # s_reader.tell() is now relative to the start of the relocate section
+        self.smf4pgin = s_reader.get_fullword()
+        self.smf4pgot = s_reader.get_fullword()
+        self.smf4nsw = s_reader.get_fullword()
+        self.smf4psi = s_reader.get_fullword()
+        self.smf4pso = s_reader.get_fullword()
+        self.smf4vpi = s_reader.get_fullword()
+        self.smf4vpo = s_reader.get_fullword()
+        self.smf4sst = s_reader.get_fullword()
+        self.smf4act = s_reader.get_fullword()          # TODO normalize this to seconds
+        s_reader.read(2 + 4 + 4 + 4)        # smf4pgmo, tran, recl, rclm
+        s_reader.read(4 + 4 + 4)            # smf4cpgm, crcl, pgst
+        self.smf4psec = s_reader.get_doubleword()
+        if s_reader.bytes_remaining() > 0:
+            self.logger.info(f"{s_reader.bytes_remaining()} extra bytes at end of relocatable section")
 
     def __repr__(self) -> str:
         return self._repr(
