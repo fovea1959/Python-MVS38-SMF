@@ -11,10 +11,12 @@ from collections.abc import Collection
 from typing import TYPE_CHECKING
 
 from .smf0x import *
+from .smf1x import *
 from .smf2x import *
 from .smf3x import *
 from .smf4x import *
 from .smf7x import *
+from .smf24x import *
 
 if TYPE_CHECKING:
     from .smf import SMF
@@ -30,7 +32,7 @@ def has_class_in_smfnx_module(class_name: str) -> bool:
     if not inspect.isclass(obj):
         return False
 
-    reg = re.compile(r"^SMF.smf\dx$")
+    reg = re.compile(r"^SMF.smf\d+x$")
     m = reg.match(obj.__module__)
     return True if m else False
 
@@ -42,6 +44,7 @@ class SMFParser:
         self.all_count = 0
         self.filtered_counter = collections.Counter()
         self.filtered_count = 0
+        self.unimplemented_counter = collections.Counter()
 
     def make_smf_from_bytes(self, b: bytes | bytearray, type_filter: Collection[int] | None = None) -> SMF | None:
         self.reader = BAReader(b)
@@ -71,6 +74,7 @@ class SMFParser:
             class_object = globals()[class_name]
             rv = class_object()
         else:
+            self.unimplemented_counter[smf_type] += 1
             logger.debug(f"No {class_name}")
             from .smf import SMF
             rv = SMF()

@@ -10,14 +10,7 @@ class SMF40(SMF):
 class SMF43(SMF):
     smf_description = "JES start"
 
-    def __init__(self):
-        super().__init__()
-        self.smf43opt = None
-        self.smf43opt_format = None
-        self.smf43opt_cold = None
-        self.smf43opt_req = None
-        self.smf43opt_list = None
-
+    # noinspection PyAttributeOutsideInit
     def fill(self, reader: BAReader):
         smf43sbs = reader.get_halfword()
         if smf43sbs != 2:

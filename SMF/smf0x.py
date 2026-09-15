@@ -8,13 +8,7 @@ from .model_lookup import lookup_model_by_class_and_type
 class SMF0(SMF):
     smf_description = "IPL Header"
 
-    def __init__(self):
-        super().__init__()
-        self.smf0vst = None
-        self.smf0rst = None
-        self.smf0osl = None
-        self.smf0syn = None
-
+    # noinspection PyAttributeOutsideInit
     def fill(self, reader: BAReader):
         reader.get_fullword()  # smf0jwt
         reader.get_fullword()  # smf0buf
@@ -48,13 +42,7 @@ class SMF3(SMF):
 class SMF4(SMF):
     smf_description = "Step Termination"
 
-    def __init__(self):
-        super().__init__()
-        self.smf4jbn = None
-        self.smf4rs_datetime = None
-        self.smf4stn = None
-        self.smf4si_datetime = None
-
+    # noinspection PyAttributeOutsideInit
     def fill(self, reader: BAReader):
         self.smf4jbn = reader.get_string(8).rstrip()
         self.smf4rs_datetime = reader.get_tme_dte()
@@ -62,21 +50,21 @@ class SMF4(SMF):
         self.smf4stn = reader.get_byte()
         self.smf4si_datetime = reader.get_tme_dte()
         self.smf4nci = reader.get_fullword()
-        smf4jcc = reader.get_halfword()
+        _smf4jcc = reader.get_halfword()
         reader.get_byte()       # smf4jpty
         self.smf4prgn = reader.get_string(8).rstrip()
         self.smf4stmn = reader.get_string(8).rstrip()
-        assert reader.tell() == 70, f"smf4rsh0 in wrong place, @ {reader.tell()}"
-        self.smf4rsh0 = reader.get_halfword()       #### TODO spelling ####
+        assert reader.tell() == 70, f"smf4rsho in wrong place, @ {reader.tell()}"
+        self.smf4rsho = reader.get_halfword()
         self.smf4syst = reader.get_halfword()
-        self.smf4h0st = reader.get_halfword()       # check spelling ################ TODO ####################
+        self.smf4host = reader.get_halfword()
         reader.read(6 + 1)          # smf4rv1, smf4spk
         assert reader.tell() == 83, f"smf4sti in wrong place, @ {reader.tell()}"
-        smf4sti = reader.get_byte()
+        _smf4sti = reader.get_byte()
         reader.read(2 + 4 + 4 + 1)          # smf4rv2, ast, ppst, rv3
         assert reader.tell() == 95, f"smf4srbt in wrong place, @ {reader.tell()}"
-        self.smf4srbt = reader.read(3)              ################## TODO ########################
-        reader.get_halfword()                 # smf4rin
+        reader.get_3byteint()               # smf4srbt
+        reader.get_halfword()               # smf4rin
 
         smf4rlct = reader.get_halfword()
         assert reader.tell() == 102, f"smf4llen in wrong place, @ {reader.tell()}"
@@ -92,25 +80,30 @@ class SMF4(SMF):
             dt = lookup_model_by_class_and_type(smf4devc, smf4utyp)
             smf4cuad = s_reader.get_halfword()
             smf4excp = s_reader.get_fullword()
-            device_entries.append(f'{dt} @ {smf4cuad:03x} {smf4excp}')
+            dd = {
+                'smf4model': dt,
+                'smf4cuad': f'{smf4cuad:03x}',
+                'smf4excp': smf4excp,
+            }
+            device_entries.append(dd)
         self.smf4devices = device_entries
         if s_reader.bytes_remaining() > 0:
+            ##### TODO this is happening, investigate
             self.logger.info(f"{s_reader.bytes_remaining()} extra bytes at end of device entries")
 
         smf4lnth = reader.get_byte()
         s_reader = reader.subreader(smf4lnth)
-        s_reader.read(3)              ############### TODO #################### smf5setm
+        self.smf4setm = s_reader.get_3byteint() / 100.0     # convert to seconds
         smf4naf = s_reader.get_byte()
-        self.smf4act = []
+        self.smf4account_fields = []
 
         for _ in range(smf4naf):
             l = s_reader.get_byte()
             af = s_reader.get_string(l)
-            self.smf4act.append(af)
+            self.smf4account_fields.append(af)
 
         reader.r.seek(smf4rlct)
-        s_reader = reader.subreader(70)
-        s_reader.offset = 0     # s_reader.tell() is now relative to the start of the relocate section
+        s_reader = reader.subreader(70, offset=0) # s_reader.tell() is now relative to the start of the relocate section
         self.smf4pgin = s_reader.get_fullword()
         self.smf4pgot = s_reader.get_fullword()
         self.smf4nsw = s_reader.get_fullword()
@@ -119,7 +112,7 @@ class SMF4(SMF):
         self.smf4vpi = s_reader.get_fullword()
         self.smf4vpo = s_reader.get_fullword()
         self.smf4sst = s_reader.get_fullword()
-        self.smf4act = s_reader.get_fullword()          # TODO normalize this to seconds
+        self.smf4act = s_reader.get_seconds_from_1024microsecond_units()
         s_reader.read(2 + 4 + 4 + 4)        # smf4pgmo, tran, recl, rclm
         s_reader.read(4 + 4 + 4)            # smf4cpgm, crcl, pgst
         self.smf4psec = s_reader.get_doubleword()
@@ -137,20 +130,7 @@ class SMF4(SMF):
 class SMF5(SMF):
     smf_description = "Job Termination"
 
-    def __init__(self):
-        super().__init__()
-        self.smf5jbn = None
-        self.smf5rs_datetime = None
-        self.smf5nst = None
-        self.smf5ji_datetime = None
-        self.smf5nci = None
-        self.smf5jicl = None
-        self.smf5tjs = None
-        self.smf5ttat = None
-        self.smf5prgn = None
-        self.smf5jcpu = None
-        self.smf5act = None
-
+    # noinspection PyAttributeOutsideInit
     def fill(self, reader: BAReader):
         self.smf5jbn = reader.get_string(8).rstrip()
         self.smf5rs_datetime = reader.get_tme_dte()
@@ -158,15 +138,15 @@ class SMF5(SMF):
         self.smf5nst = reader.get_byte()
         self.smf5ji_datetime = reader.get_tme_dte()
         self.smf5nci = reader.get_fullword()
-        smf5jcc = reader.get_halfword()
+        _smf5jcc = reader.get_halfword()
         reader.get_byte()       # smf5jpty
         reader.get_tme_dte()    # smf5rstt smf5rstd
-        smf5jbti = reader.get_byte()
+        _smf5jbti = reader.get_byte()
         reader.read(1 + 4 + 1 + 1 + 1)  #smf5smci, tran, ckre, rdcl, ruty
         self.smf5jicl = reader.get_string(1)
         assert reader.tell() == 72, f"smf5spk in wrong place, @ {reader.tell()}"
         reader.get_byte()       # smf5spk
-        reader.read(3)          # smf5srbt  ########################### TODO ##############################
+        self.smf5spk = reader.get_3byteint()
         self.smf5tjs = reader.get_fullword()
         self.smf5ttat = reader.get_fullword()
         reader.get_fullword()   # smf5rv2
@@ -177,7 +157,7 @@ class SMF5(SMF):
 
         s_reader = reader.subreader(smf5tlen)
         self.smf5prgn = s_reader.get_string(20).rstrip()
-        smf5jcpu = s_reader.read(3)             ################## TODO ##################
+        self.smf5jcpu = s_reader.get_3byteint()
         smf5actf = s_reader.get_byte()
         self.smf5act = []
 
@@ -200,19 +180,7 @@ class SMF5(SMF):
 class SMF6(SMF):
     smf_description = "JES Output Writer"
 
-    def __init__(self):
-        super().__init__()
-        self.smf6jbn = None
-        self.smf6rs_datetime = None
-        self.smf6owc = None
-        self.smf6ws_datetime = None
-        self.smf6nlr = None
-        self.smf6nds = None
-        self.smf6fmn = None
-        self.smf6out = None
-        self.smf6jnm = None
-        self.smf6pge = None
-
+    # noinspection PyAttributeOutsideInit
     def fill(self, reader: BAReader):
         self.smf6jbn = reader.get_string(8).rstrip()
         self.smf6rs_datetime = reader.get_tme_dte()

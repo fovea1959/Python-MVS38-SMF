@@ -7,7 +7,6 @@ logger.setLevel(logging.INFO)
 # GC28-0710-0_OS_VS2_Debugging_Handbook_Vol_3_Rel_3.7_Dec78.pdf
 # LC28-1389-0_MVS_370_System_Programming_Library_Debugging_Handbook_Volume_5_Data_Areas_S-Z_Jul1985.pdf
 
-
 dasd_table = {
     0x06: "2305-1",
     0x07: "2305-2",
@@ -55,6 +54,20 @@ terminal_table = {
     0x0b: "3284/3286",
 }
 
+device_classes = {
+    0x04: ("Character Reader", None),
+    0x08: ("Unit Record", unit_record_table),
+    0x10: ("Terminal", terminal_table),
+    0x20: ("DASD", dasd_table),
+    0x40: ("Communications", None),
+    0x80: ("Magnetic Tape", tape_table),
+}
+
+def lookup_device_class(device_class: int) -> str:
+    rv, _ = device_classes.get(device_class)
+    if rv is None:
+        rv = "Unknown device class 0x{device_class:x}"
+    return rv
 
 def lookup_model(unit_type: int) -> str:
     device_class = (unit_type & 0xff00) >> 8
@@ -63,14 +76,8 @@ def lookup_model(unit_type: int) -> str:
     return lookup_model_by_class_and_type(device_class, device_type)
 
 def lookup_model_by_class_and_type(device_class, device_type):
-    device_class_string, model_lookup_table = {
-        0x04: ("Character Reader", None),
-        0x08: ("Unit Record", unit_record_table),
-        0x10: ("Terminal", terminal_table),
-        0x20: ("DASD", dasd_table),
-        0x40: ("Communications", None),
-        0x80: ("Magnetic Tape", tape_table),
-    }.get(device_class, (f"Unknown device class string {device_class:x}", None))
+    device_class_string, model_lookup_table =(
+        device_classes.get(device_class, (f"Unknown device class 0x{device_class:x}", None)))
 
     if model_lookup_table is not None:
         rv = model_lookup_table.get(device_type)

@@ -10,11 +10,12 @@ class BAReader:
     def tell(self) -> int:
         return self.r.tell() + self.offset
 
-    def get_buffer(self) -> bytes:
-        return self.r.getbuffer()
+    #def get_buffer(self) -> bytes:
+    #   return self.r.getbuffer().tobytes()
 
-    def subreader(self, l: int) -> BAReader:
-        offset = self.tell()
+    def subreader(self, l: int, offset: int | None = None) -> BAReader:
+        if offset is None:
+            offset = self.tell()
         b = self.read(l)
         rv = BAReader(b, offset)
         return rv
@@ -56,6 +57,12 @@ class BAReader:
         rv, = struct.unpack(">H", b)
         return rv
 
+    def get_3byteint(self):
+        b = self.read(3)
+        b = b"\x00" + b
+        rv, = struct.unpack(">I", b)
+        return rv
+
     def get_byte(self):
         b = self.read(1)
         return int.from_bytes(b, signed=False)
@@ -95,6 +102,10 @@ class BAReader:
         ss = mmss % 100
         mm = mmss // 100
         rv = datetime.timedelta(minutes=mm, seconds=ss, milliseconds=ttt)
+        return rv
+
+    def get_seconds_from_1024microsecond_units(self) -> float:
+        rv  = self.get_fullword() * 0.001024
         return rv
 
     def get_packed_decimal(self, l: int) -> int:    # original had decimals: int = 0 argument
